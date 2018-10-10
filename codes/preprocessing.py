@@ -395,7 +395,7 @@ def hist(img):
 # # Visualize the resulting histogram
 # plt.plot(histogram)
 
-def calculate_radius_curvature(binary_warped, left_fit, right_fit, ym_per_pix = 30/720):
+def calculate_curvature_offset(binary_warped, left_fit, right_fit, ym_per_pix = 30/720, xm_per_pix = 3.7 / 700):
     '''
     
     :param ploty:
@@ -403,14 +403,30 @@ def calculate_radius_curvature(binary_warped, left_fit, right_fit, ym_per_pix = 
     :param right_fit:
     :return:
     '''
+    
+    # generate y value
     ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
     y_eval = np.max(ploty)
+    
+    # curvature
     left_curverad = ((1 + (2 * left_fit[0] * y_eval * ym_per_pix + left_fit[1]) ** 2) ** 1.5) / np.absolute(
         2 * left_fit[0])
     right_curverad = ((1 + (2 * right_fit[0] * y_eval * ym_per_pix + right_fit[1]) ** 2) ** 1.5) / np.absolute(
         2 * right_fit[0])
+
+    mean_curverad = np.mean([left_curverad, right_curverad])
     
-    return left_curverad, right_curverad
+    # vehicle position
+    left_fitx = left_fit[0] * (y_eval * ym_per_pix) ** 2 + left_fit[1] * (y_eval * ym_per_pix) + left_fit[2]
+    right_fitx = right_fit[0] *(y_eval * ym_per_pix) ** 2 + right_fit[1] * (y_eval * ym_per_pix) + right_fit[2]
+    
+    center_lane = np.mean([left_fitx, right_fitx])
+    center_vehicle =  (binary_warped.shape[1]*xm_per_pix)/2
+    offset = center_lane - center_vehicle
+    
+    return mean_curverad, offset
+
+
 
 def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
     """
