@@ -28,11 +28,11 @@ def find_corners(img, nx, ny):
 
 def get_img_obj_points(images, nx, ny):
     '''
-
+    get the object point and image point given (x, y) patterns.
     :param images:
-    :param nx:
-    :param ny:
-    :return:
+    :param nx: the number of pattern on the x-axis
+    :param ny: the number of pattern in the y-axis
+    :return: a list of object points and image points.
     '''
     objp = np.zeros((nx * ny, 3), np.float32)
     objp[:, :2] = np.mgrid[0:nx, 0:ny].T.reshape(-1, 2)
@@ -56,22 +56,23 @@ def create_pickle_file(objpoints, imgpoints):
 
 def calibrate_camera(img, objpoints, imgpoints):
     '''
-
-    :param img:
-    :param objpoints:
-    :param imgpoints:
-    :return:
+    Calculate the camera matrix and distortion coefficient given an image
+    :param img: the images
+    :param objpoints: list of (x, y, z) coordinate of the real world image pattern.
+    :param imgpoints: list of (x, y) coordinate of the image point pattern
+    :return: distortion matrix, and distortion coefficient
     '''
-    return cv2.calibrateCamera(objpoints, imgpoints, img.shape[1::-1], None, None)
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img.shape[1::-1], None, None)
+    return mtx, dist
 
 
 def undistort_image(img, camera_matrix, distortion_coef):
     '''
-
-    :param img:
-    :param camera_matrix:
-    :param distortion_coef:
-    :return:
+    undistort an image
+    :param img: distorted image
+    :param camera_matrix: camera matrix
+    :param distortion_coef: distortion coefficient.
+    :return: undistorted image
     '''
     return cv2.undistort(img, camera_matrix, distortion_coef, \
                          None, camera_matrix)
@@ -79,10 +80,11 @@ def undistort_image(img, camera_matrix, distortion_coef):
 
 def perspective_transform(src, dst):
     '''
-
-    :param src:
-    :param dst:
-    :return:
+    Calculate the perspective transform from four pair of
+    corresponding points
+    :param src: a list of four source points.
+    :param dst: a list of four destination points.
+    :return: perspective transform
     '''
     return cv2.getPerspectiveTransform(src, dst)
 
@@ -97,16 +99,16 @@ def inverse_perspective_transform(src, dst):
     return cv2.getPerspectiveTransform(dst, src)
 
 
-def warp_image(undist_image, transform, img_size, flags=cv2.INTER_LINEAR):
+def warp_image(img, transform, img_size, flags=cv2.INTER_LINEAR):
     '''
-
+    Apply a perspective transform to an image
     :param undist_image:
     :param transform:
     :param img_size:
     :param flags:
-    :return:
+    :return: a transformed image
     '''
-    return cv2.warpPerspective(undist_image, transform, dsize=img_size, flags=flags)
+    return cv2.warpPerspective(img, transform, dsize=img_size, flags=flags)
 
 
 ################ Thresh
@@ -187,7 +189,14 @@ def combined_threshold(image, orientations, ksize, thresh):
     return combined
 
 
-def pipeline(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
+def detect_edges(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
+    '''
+    Detect vertical edges in an image
+    :param img: image
+    :param s_thresh: color threshold
+    :param sx_thresh: sobel threshold
+    :return:
+    '''
     img = np.copy(img)
     # convert to HLS color space and separate the V channel
     hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
