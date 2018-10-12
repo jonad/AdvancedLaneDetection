@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-
 def grayscale(img):
     '''
 
@@ -223,7 +222,13 @@ def detect_edges(img, s_thresh=(170, 255), sx_thresh=(20, 100)):
 
 
 def hist(img):
+    '''
+    compute the distribution of x-axis value given a binary image
+    :param img:
+    :return: the count of number of pixel on the x-axis
+    '''
     img = np.copy(img)
+    # make the image binary
     img=img/255
     bottom_half = img[img.shape[0] // 2:, :]
     histogram = np.sum(bottom_half, axis=0)
@@ -231,6 +236,11 @@ def hist(img):
 
 
 def find_pixel_lane(binary_warped):
+    '''
+    Find the lane using sliding windows
+    :param binary_warped:
+    :return:
+    '''
     # Take a histogram of the bottom half of the image
     histogram = hist(binary_warped)
     
@@ -304,26 +314,37 @@ def find_pixel_lane(binary_warped):
     return leftx, lefty, rightx, righty, out_img
 
 def fit_polynomial(binary_warped, ym_per_pix=30/720,  xm_per_pix = 3.7 / 700):
+   '''
+   Fit the polynomial on a binary image
+   :param binary_warped:
+   :param ym_per_pix:
+   :param xm_per_pix:
+   :return:
+   '''
+   # Find our lane pixel
+   leftx, lefty, rightx, righty, out_img = find_pixel_lane(binary_warped)
+   # Fit a second order polynomial to each using `np.polyfit` in pixel
+   left_fit = np.polyfit(lefty, leftx, 2)
+   right_fit = np.polyfit(righty, rightx, 2)
+   # Colors in the left and right lane regions
+   out_img[lefty, leftx] = [255, 0, 0]
+   out_img[righty, rightx] = [0, 0, 255]
+   # fit a second order polynomial in meter
+   left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
+   right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
    
-    
-    # Find our lane pixel
-    leftx, lefty, rightx, righty, out_img = find_pixel_lane(binary_warped)
-    # Fit a second order polynomial to each using `np.polyfit` in pixel
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
-    
-    # Colors in the left and right lane regions
-    out_img[lefty, leftx] = [255, 0, 0]
-    out_img[righty, rightx] = [0, 0, 255]
+   return out_img, left_fit, right_fit, left_fit_cr, right_fit_cr
 
-    # fit a second order polynomial in meter
-    left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
-    right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
-    
-    return out_img, left_fit, right_fit, left_fit_cr, right_fit_cr
-
-def plot_polynomial(binary_warped, out_img, left_fit, right_fit):
-    
+def plot_polynomial(img, out_img, left_fit, right_fit):
+    '''
+    Plot the fitted polynomial on the image
+    :param img:
+    :param out_img:
+    :param left_fit:
+    :param right_fit:
+    :return:
+    '''
+    binary_warped = img[:, :, 0]
     # Generate x and y values for plotting
     ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
     try:
@@ -336,55 +357,23 @@ def plot_polynomial(binary_warped, out_img, left_fit, right_fit):
         right_fitx = 1 * ploty ** 2 + 1 * ploty
     
     # Plots the left and right polynomials on the lane lines
-    plt.imshow(out_img)
-    plt.plot(left_fitx, ploty, color='yellow')
-    plt.plot(right_fitx, ploty, color='yellow')
+    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
+    f.tight_layout()
+    ax1.imshow(img)
+    ax1.set_title('Binary Image', fontsize=50)
+    ax2.imshow(out_img)
+    ax2.plot(left_fitx, ploty, color='yellow')
+    ax2.plot(right_fitx, ploty, color='yellow')
+    ax2.set_title('Image with the fitted polynomial', fontsize=50)
+    plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
     plt.show()
     
+    #plt.imshow(out_img)
+    #plt.plot(left_fitx, ploty, color='yellow')
+    #plt.plot(right_fitx, ploty, color='yellow')
+    #plt.show()
     
-
-# def fit_polynomial(binary_warped):
-#     ym_per_pix = 30 / 720  # meters per pixel in y dimension
-#     xm_per_pix = 3.7 / 700 #meters per pixel in x dimension
-#
-#     # Find our lane pixels first
-#     leftx, lefty, rightx, righty, out_img = find_pixel_lane(binary_warped)
-#
-#
-#     # Fit a second order polynomial to each using `np.polyfit` in pixel
-#     left_fit = np.polyfit(lefty, leftx, 2)
-#     right_fit = np.polyfit(righty, rightx, 2)
-#
-#     # fit a second order polynomial in meter
-#     left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
-#     right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
-#
-#
-#
-#     # Generate x and y values for plotting
-#     ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
-#     try:
-#         left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-#         right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
-#     except TypeError:
-#         # Avoids an error if `left` and `right_fit` are still none or incorrect
-#         print('The function failed to fit a line!')
-#         left_fitx = 1 * ploty ** 2 + 1 * ploty
-#         right_fitx = 1 * ploty ** 2 + 1 * ploty
-#
-#     ## Visualization ##
-#     # Colors in the left and right lane regions
-#     out_img[lefty, leftx] = [255, 0, 0]
-#     out_img[righty, rightx] = [0, 0, 255]
-#
-#     # Plots the left and right polynomials on the lane lines
-#     plt.imshow(out_img)
-#     plt.plot(left_fitx, ploty, color='yellow')
-#     plt.plot(right_fitx, ploty, color='yellow')
-#     plt.show()
-#
-#     return out_img, left_fit_cr, right_fit_cr, ploty
-
+    
 
 def hist(img):
     # TO-DO: Grab only the bottom half of the image
@@ -435,8 +424,6 @@ def calculate_curvature_offset(binary_warped, left_fit, right_fit, ym_per_pix = 
     
     return mean_curverad, offset
 
-
-
 def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
     """
     `img` is the output of the hough_lines(), An image with lines drawn on it.
@@ -448,18 +435,9 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
     """
     return cv2.addWeighted(initial_img, α, img, β, γ)
 
-
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-
+#def detect_lane_pipeline(img):
+    ###todo
+    ## distortion
+    ## perspective transform
+    ## find pixel lane
+    ## fit lane
